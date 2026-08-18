@@ -1,43 +1,67 @@
 # Embedding Lookup
 
-Questo progetto mostra un esempio semplice di tokenizzazione e lookup di embedding in C.
+Questo progetto mostra un esempio semplice e completo di **tokenizzazione** e **lookup di embedding** in C, con dati reali letti da file.
+
+## Pipeline
+
+```
+vocab.txt  ──>  [parola, ID]          ──>  main.c
+                       │
+embedding.bin ──>  matrice (vocab_size x DIM)
+                       │
+              get_id(parola)  →  ID           (tokenization.c)
+                       │
+              lookup_embedding(ID)  →  vettore (embedding.c)
+```
+
+1. **Tokenizzazione**: una parola viene convertita in un ID numerico con `get_id()` (la sua posizione nel vocabolario).
+2. **Embedding lookup**: dato l'ID, `lookup_embedding()` restituisce il vettore di `DIM` numeri associato alla parola.
 
 ## Struttura del progetto
 
-- **main.c**: contiene solo la funzione `main`, che utilizza le librerie esterne per la tokenizzazione e l'embedding.
-- **tokenization.h/c**: libreria per la gestione del vocabolario e la tokenizzazione (conversione parola → ID).
-- **embedding.h/c**: libreria per il lookup dell'embedding (conversione ID → vettore di caratteristiche).
+- **main.c**: la `main`. Carica i dati, converte parola → ID, fa il lookup e stampa il vettore.
+- **tokenization.h/c**: libreria con la struttura `Vocabolario {id, parola}` e `get_id()` (parola → ID).
+- **embedding.h/c**: `lookup_embedding()` (ID → vettore) e la costante `DIM` (`DIM = 3`).
+- **vocab_loader.h/c**: `carica_vocabolario()` legge `vocab.txt`, `carica_pesi()` legge `embedding.bin` (con verifica che il file contenga esattamente `vocab_size * DIM` float).
+- **crea_file_esempio.py**: script Python che genera i file di esempio `vocab.txt` e `embedding.bin`.
+- **vocab.txt** / **embedding.bin**: i dati (5 parole, vettori a 3 dimensioni: [Umanità, Regalità, Frutto]).
 
-## Come funziona
+## Come rigenerare i dati di esempio (facoltativo)
 
-1. **Tokenizzazione**: una parola viene convertita in un ID numerico tramite la funzione `get_id`.
-2. **Embedding Lookup**: dato l'ID, la funzione `lookup_embedding` restituisce il vettore di caratteristiche associato.
+```
+python3 crea_file_esempio.py
+```
+
+Crea `vocab.txt` (una parola per riga) e `embedding.bin` (float32 little-endian, `vocab_size * DIM` valori).
 
 ## Compilazione
 
-Per compilare il progetto, usa il seguente comando nel terminale:
-
 ```
-gcc main.c tokenization.c embedding.c -o embedding_lookup
+gcc main.c tokenization.c embedding.c vocab_loader.c -o embedding_lookup
 ```
 
-Questo produrrà un eseguibile chiamato `embedding_lookup`.
+> Suggerimento: usa `gcc -Wall -Wextra ... -o embedding_lookup` per vedere gli avvisi.
 
 ## Esecuzione
 
-Esegui il programma con:
-
 ```
-./embedding_lookup
+./embedding_lookup            # cerca la parola di default: 'Regina'
+./embedding_lookup Mela       # cerca la parola data come argomento
 ```
 
 ## Esempio di output
 
 ```
+$ ./embedding_lookup Regina
 La parola 'Regina' (ID: 1) ha queste caratteristiche:
-[Umano: 0.90, Regale: 0.95, Frutto: 0.00]
+[1.00, 1.00, 0.00]
+
+$ ./embedding_lookup NonEsistente
+Parola sconosciuta: 'NonEsistente'. Prova uno di questi: Re, Regina, Uomo, Donna, Mela
 ```
 
 ## Note
-- Puoi modificare il vocabolario e la matrice di embedding direttamente in `main.c`.
-- Le librerie sono modulari e riutilizzabili in altri progetti.
+
+- Le librerie (`tokenization`, `embedding`, `vocab_loader`) sono modulari e riutilizzabili in altri progetti.
+- I vettori di esempio hanno senso solo come demo: in un modello reale `DIM` sarebbe 300+ e la matrice verrebbe appresa dai dati, non scritta a mano.
+- `embedding.bin` è letto come float32 little-endian: funziona così come generato da `crea_file_esempio.py` su Mac/ARM e su x86 Linux.

@@ -14,10 +14,20 @@ int carica_vocabolario(VocabEntry* vocab, const char* filename) {
 }
 
 float* carica_pesi(const char* filename, int vocab_size, int dim) {
-    float* matrix = malloc(vocab_size * dim * sizeof(float));
+    float* matrix = malloc((size_t)vocab_size * dim * sizeof(float));
+    if (!matrix) return NULL;
     FILE* f = fopen(filename, "rb");
-    if (!f) return NULL;
-    fread(matrix, sizeof(float), vocab_size * dim, f);
+    if (!f) {
+        free(matrix);
+        return NULL;
+    }
+    size_t attesi = (size_t)vocab_size * dim;
+    size_t letti = fread(matrix, sizeof(float), attesi, f);
     fclose(f);
+    if (letti != attesi) {
+        /* File troncato o con dimensioni incoerenti: non usare dati parziali */
+        free(matrix);
+        return NULL;
+    }
     return matrix;
 }

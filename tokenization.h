@@ -6,6 +6,6 @@ typedef struct {
     char parola[20];
 } Vocabolario;
 
-int get_id(Vocabolario voc[], int size, char* parola);
+int get_id(Vocabolario voc[], int size, const char* parola);
 
 #endif // TOKENIZATION_H

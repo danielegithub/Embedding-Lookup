@@ -6,10 +6,14 @@
  * 2) caricare una matrice di embedding da file binario,
  * 3) cercare una parola e stampare il suo vettore di embedding.
  *
+ * Uso:
+ *   ./embedding_lookup            -> cerca la parola di default (Regina)
+ *   ./embedding_lookup Mela       -> cerca la parola data come argomento
+ *
  * File esterni utilizzati:
- * - vocab_loader.c/h : funzioni per caricare vocab e pesi
- * - tokenization.c/h  : (opzionale) funzioni di tokenizzazione
- * - embedding.c/h     : lookup dell'embedding
+ * - vocab_loader.c/h : carica il vocabolario (vocab.txt) e i pesi (embedding.bin)
+ * - tokenization.c/h : conversione parola -> ID (get_id)
+ * - embedding.c/h    : conversione ID -> vettore (lookup_embedding)
  */
 
 #include <stdio.h>
@@ -20,20 +24,24 @@
 #include "embedding.h"
 #include "vocab_loader.h"
 
-int main(void) {
+int main(int argc, char* argv[]) {
+    /*
+     * La parola da cercare: argv[1] se fornita, altrimenti la parola di esempio.
+     */
+    const char* input = (argc > 1) ? argv[1] : "Regina";
+
+    VocabEntry vocab[MAX_VOCAB];
+    int vocab_size;
+    float* W_E;
+    int i;
+    int id;
+    float vettore_risultato[DIM];
+
     /*
      * 1) Caricamento del vocabolario
      *    Immagina: `vocab.txt` è una lista, una parola per riga,
      *    come una lista della spesa. Ogni parola avrà un indice (ID).
      */
-    VocabEntry vocab[MAX_VOCAB];
-    int vocab_size;
-    float *W_E;
-    char input[64];
-    int id;
-    int i;
-    float vettore_risultato[DIM];
-
     vocab_size = carica_vocabolario(vocab, "vocab.txt");
     if (vocab_size == 0) {
         /* Se non riesce a leggere il file, informiamo l'utente */
@@ -53,28 +61,31 @@ int main(void) {
     }
 
     /*
-     * 3) Ricerca di una parola (esempio semplice)
-     *    Qui usiamo "Regina" come parola di esempio.
-     *    Spiegazione per un ragazzino:
-     *      - Cerchiamo la parola nella lista (vocab). Se la troviamo, sappiamo
-     *        qual è il suo numero (ID). Poi prendiamo i numeri corrispondenti
-     *        dall'enorme lista `embedding.bin` e li stampiamo.
+     * 3) Tokenizzazione: parola -> ID
+     *    Trasferisci le parole caricate dalla libreria di tokenizzazione
+     *    e usa get_id() per trovare il numero che identifica la parola.
+     *    L'ID corrisponde alla posizione della parola nel vocabolario:
+     *    la prima parola di vocab.txt ha ID 0, la seconda ID 1, e così via.
      */
-    strcpy(input, "Regina");
-
-    /* Cerca lineare nel vocabolario (semplice da capire) */
-    id = -1;
+    Vocabolario* voc = (Vocabolario*)malloc((size_t)vocab_size * sizeof(Vocabolario));
+    if (!voc) {
+        free(W_E);
+        printf("Errore di memoria.\n");
+        return 1;
+    }
     i = 0;
     while (i < vocab_size) {
-        if (strcmp(vocab[i].parola, input) == 0) {
-            id = i; /* trovato: l'ID è la posizione nella lista */
-            break;
-        }
+        /* parola[19] in Vocabolario + terminatore: taglia i nomi troppo lunghi */
+        strncpy(voc[i].parola, vocab[i].parola, sizeof(voc[i].parola) - 1);
+        voc[i].parola[sizeof(voc[i].parola) - 1] = '\0';
+        voc[i].id = i;
         i++;
     }
 
+    id = get_id(voc, vocab_size, input);
+
     if (id != -1) {
-        /* Se troviamo l'ID, usiamo il lookup per ottenere il vettore */
+        /* 4) Embedding lookup: ID -> vettore di caratteristiche */
         lookup_embedding(W_E, id, vettore_risultato);
         printf("La parola '%s' (ID: %d) ha queste caratteristiche:\n", input, id);
         printf("[");
@@ -86,10 +97,19 @@ int main(void) {
         }
         printf("]\n");
     } else {
-        printf("Parola sconosciuta.\n");
+        /* Parola non presente nel vocabolario */
+        printf("Parola sconosciuta: '%s'. Prova uno di questi: ", input);
+        i = 0;
+        while (i < vocab_size) {
+            if (i > 0) printf(", ");
+            printf("%s", vocab[i].parola);
+            i++;
+        }
+        printf("\n");
     }
 
     /* Pulisce la memoria */
+    free(voc);
     free(W_E);
     return 0;
 }
