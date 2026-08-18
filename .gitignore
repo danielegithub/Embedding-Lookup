@@ -1,0 +1,17 @@
+# Esecutivi compilati
+a.out
+embedding_lookup
+*.o
+*.so
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp
